@@ -144,6 +144,15 @@ jobs:
           --html=reports/pytest-report.html --self-contained-html
           --junitxml=reports/junit.xml
 
+      - name: Analizar código con SonarCloud
+        uses: SonarSource/sonarqube-scan-action@v7
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.qualitygate.wait=true
+            -Dsonar.qualitygate.timeout=300
+
       # 9) Publica los reportes como artifact del workflow.
       #    "if: always()" lo sube aunque los tests fallen: es justo cuando más
       #    sirve tener el detalle del error.
