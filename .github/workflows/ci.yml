@@ -110,9 +110,15 @@ jobs:
       # 4) Arranca el backend en segundo plano. Al iniciar, Sequelize crea las
       #    tablas (sync) y los usuarios admin/tester. La salida va a un log
       #    que después se publica junto con el reporte.
-      - name: Levantar backend
+      - name: Levantar backend con cobertura
         working-directory: backend
-        run: nohup npm start > ../backend.log 2>&1 &
+        run: |
+          mkdir -p coverage
+          nohup npx c8 \
+            --reporter=lcov \
+            --reporter=text \
+            --reports-dir=coverage \
+            npm start > ../backend.log 2>&1 &
 
       # 5) Python 3.11 con cache de pip (clave: requirements-test.txt)
       - name: Configurar Python (cache de pip)
@@ -143,6 +149,11 @@ jobs:
           pytest
           --html=reports/pytest-report.html --self-contained-html
           --junitxml=reports/junit.xml
+
+      - name: Generar informe de cobertura
+        if: ${{ always() }}
+        working-directory: backend
+        run: npx c8 report --reporter=lcov --reports-dir=coverage
 
       - name: Analizar código con SonarCloud
         uses: SonarSource/sonarqube-scan-action@v7
