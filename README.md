@@ -81,6 +81,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+```
 
 3. Quality Gate (Puertas de Calidad)
 Se configuró un Quality Gate estricto en SonarCloud que bloquea e invalida el pipeline automáticamente si se incumple alguna de las siguientes condiciones en el código nuevo[cite: 1]:
