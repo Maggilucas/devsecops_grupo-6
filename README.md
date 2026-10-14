@@ -81,13 +81,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+ yaml```
 
-### 3. Quality Gate (Puertas de Calidad)
+3. Quality Gate (Puertas de Calidad)
 Se configuró un Quality Gate estricto en SonarCloud que bloquea e invalida el pipeline automáticamente si se incumple alguna de las siguientes condiciones en el código nuevo[cite: 1]:
 
 Bugs o Vulnerabilidades: Cero tolerancia a nuevos "Bugs" o "Vulnerabilidades" de seguridad[cite: 1].
 
 Cobertura de Tests: La cobertura de pruebas sobre el código nuevo debe ser inferior al 80% (falla si no se alcanza o supera este umbral)[cite: 1].
 
-### 4. Automatización con GitHub Dependabot
+4. Automatización con GitHub Dependabot
 Se activó GitHub Dependabot en el repositorio para auditar de forma continua los archivos de manifiesto de dependencias. Dependabot escanea el proyecto en segundo plano y genera Pull Requests automáticos en caso de detectar vulnerabilidades conocidas en las librerías de terceros utilizadas[cite: 1].
