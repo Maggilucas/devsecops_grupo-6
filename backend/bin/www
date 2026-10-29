@@ -152,3 +152,6 @@ function onListening() {
 
 
 startServer();
+
+// Cierre ordenado: permite que c8 escriba el reporte de cobertura en el CI
+process.on('SIGTERM', () => process.exit(0));
