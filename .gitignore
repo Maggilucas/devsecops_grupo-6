@@ -11,3 +11,6 @@ __pycache__/
 .pytest_cache/
 reports/
 backend.log
+# Reportes de cobertura (se generan solos en el CI)
+backend/coverage/
+coverage/

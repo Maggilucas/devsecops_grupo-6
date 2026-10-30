@@ -3,9 +3,14 @@
 # -----------------------------------------------------------------------------
 # En cada pull request contra main:
 #   1. Levanta un MySQL 8 como "service container".
-#   2. Instala y arranca el backend (Node + Express + Sequelize) de la Actividad 2.
+#   2. Instala y arranca el backend (Node + Express + Sequelize) con c8, que
+#      mide qué líneas del backend se ejecutan mientras corren los tests.
 #   3. Corre la suite pytest, que le pega por HTTP a la API y verifica la base.
-#   4. Publica el reporte HTML de pytest como artifact.
+#   4. Detiene el backend de forma ordenada para que c8 escriba el reporte de
+#      cobertura (lcov) y ajusta las rutas para que SonarCloud las encuentre.
+#   5. Ejecuta el análisis de SonarCloud (SAST + cobertura) y espera el
+#      resultado del Quality Gate: si no se cumple, el job falla.
+#   6. Publica el reporte HTML de pytest como artifact.
 #
 # El resultado del job se reporta como "status check" en el PR. Una branch
 # protection rule sobre main exige que ese check pase para habilitar el merge
@@ -38,9 +43,11 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
-# Permisos mínimos del GITHUB_TOKEN: solo lectura del código
+# Permisos mínimos del GITHUB_TOKEN: lectura del código y de los PR
+# (SonarCloud necesita leer el PR para analizar solo lo que cambió)
 permissions:
   contents: read
+  pull-requests: read
 
 # Variables de entorno compartidas por todos los steps del job.
 # Son credenciales descartables de una base efímera que solo existe durante
@@ -89,9 +96,12 @@ jobs:
 
     steps:
       # 1) Descarga el código en el runner.
-      #    En un pull_request hace checkout del merge del PR con main.
+      #    fetch-depth: 0 baja todo el historial de git. SonarCloud lo necesita
+      #    para saber quién escribió cada línea y qué es "código nuevo" en un PR.
       - name: Checkout del código
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       # 2) Node.js con cache de npm. La clave del cache sale del
       #    package-lock.json del backend: si no cambió, se reutiliza.
@@ -107,18 +117,17 @@ jobs:
         working-directory: backend
         run: npm ci
 
-      # 4) Arranca el backend en segundo plano. Al iniciar, Sequelize crea las
-      #    tablas (sync) y los usuarios admin/tester. La salida va a un log
-      #    que después se publica junto con el reporte.
+      # 4) Arranca el backend en segundo plano. NODE_V8_COVERAGE le indica a
+      #    Node que guarde en coverage/tmp qué líneas se ejecutan (cobertura
+      #    cruda). Se guarda el PID para poder detenerlo después.
+      #    Al iniciar, Sequelize crea las tablas (sync) y los usuarios
+      #    admin/tester. La salida va a un log que después se publica.
       - name: Levantar backend con cobertura
         working-directory: backend
         run: |
-          mkdir -p coverage
-          nohup npx c8 \
-            --reporter=lcov \
-            --reporter=text \
-            --reports-dir=coverage \
-            npm start > ../backend.log 2>&1 &
+          mkdir -p coverage/tmp
+          NODE_V8_COVERAGE="$PWD/coverage/tmp" nohup node ./bin/www > ../backend.log 2>&1 &
+          echo $! > ../backend.pid
 
       # 5) Python 3.11 con cache de pip (clave: requirements-test.txt)
       - name: Configurar Python (cache de pip)
@@ -150,11 +159,45 @@ jobs:
           --html=reports/pytest-report.html --self-contained-html
           --junitxml=reports/junit.xml
 
-      - name: Generar informe de cobertura
+      # 9) Detiene el backend con SIGTERM. El backend tiene un handler que
+      #    cierra el proceso ordenadamente (ver backend/bin/www), y recién ahí
+      #    Node escribe la cobertura cruda en coverage/tmp. Después c8 la
+      #    convierte a coverage/lcov.info, que es el formato que lee Sonar.
+      #    Antes el reporte se pedía con el backend todavía corriendo, y por
+      #    eso Sonar recibía 0% de cobertura.
+      - name: Detener backend y generar cobertura
         if: ${{ always() }}
         working-directory: backend
-        run: npx c8 report --reporter=lcov --reports-dir=coverage
+        run: |
+          kill -TERM "$(cat ../backend.pid)" || true
+          # Espera hasta 20 s a que el proceso termine de escribir
+          for i in $(seq 1 20); do
+            kill -0 "$(cat ../backend.pid)" 2>/dev/null || break
+            sleep 1
+          done
+          echo "Archivos de cobertura cruda generados:"
+          ls coverage/tmp
+          npx c8 report \
+            --reporter=lcov \
+            --reporter=text \
+            --reports-dir=coverage \
+            --temp-directory=coverage/tmp
+          ls -la coverage
 
+      # 10) c8 escribe las rutas relativas a backend/ (ej: "app.js"), pero
+      #     SonarCloud las busca desde la raíz del repo ("backend/app.js").
+      #     Este paso les agrega el prefijo y muestra las primeras líneas
+      #     para poder comprobarlo en el log.
+      - name: Ajustar rutas del reporte de cobertura
+        run: |
+          sed -i '/^SF:backend\//! s#^SF:#SF:backend/#' backend/coverage/lcov.info
+          head -5 backend/coverage/lcov.info
+
+      # 11) Análisis de SonarCloud (SAST + cobertura).
+      #     sonar.qualitygate.wait=true hace que el step espere el resultado
+      #     del Quality Gate y falle (exit code 3) si no se cumple. Así el
+      #     check del PR queda en rojo y la branch protection bloquea el merge.
+      #     La configuración del proyecto está en sonar-project.properties.
       - name: Analizar código con SonarCloud
         uses: SonarSource/sonarqube-scan-action@v7
         env:
@@ -164,7 +207,7 @@ jobs:
             -Dsonar.qualitygate.wait=true
             -Dsonar.qualitygate.timeout=300
 
-      # 9) Publica los reportes como artifact del workflow.
+      # 12) Publica los reportes como artifact del workflow.
       #    "if: always()" lo sube aunque los tests fallen: es justo cuando más
       #    sirve tener el detalle del error.
       - name: Publicar reporte de tests
