@@ -117,18 +117,17 @@ jobs:
         working-directory: backend
         run: npm ci
 
-      # 4) Arranca el backend en segundo plano envuelto en c8. c8 registra qué
-      #    líneas se ejecutan y arma el reporte cuando el backend termina.
+      # 4) Arranca el backend en segundo plano. NODE_V8_COVERAGE le indica a
+      #    Node que guarde en coverage/tmp qué líneas se ejecutan (cobertura
+      #    cruda). Se guarda el PID para poder detenerlo después.
       #    Al iniciar, Sequelize crea las tablas (sync) y los usuarios
       #    admin/tester. La salida va a un log que después se publica.
       - name: Levantar backend con cobertura
         working-directory: backend
         run: |
-          nohup npx c8 \
-            --reporter=lcov \
-            --reporter=text \
-            --reports-dir=coverage \
-            npm start > ../backend.log 2>&1 &
+          mkdir -p coverage/tmp
+          NODE_V8_COVERAGE="$PWD/coverage/tmp" nohup node ./bin/www > ../backend.log 2>&1 &
+          echo $! > ../backend.pid
 
       # 5) Python 3.11 con cache de pip (clave: requirements-test.txt)
       - name: Configurar Python (cache de pip)
@@ -162,18 +161,27 @@ jobs:
 
       # 9) Detiene el backend con SIGTERM. El backend tiene un handler que
       #    cierra el proceso ordenadamente (ver backend/bin/www), y recién ahí
-      #    c8 escribe coverage/lcov.info. Antes el reporte se pedía con el
-      #    backend todavía corriendo, y por eso Sonar recibía 0% de cobertura.
+      #    Node escribe la cobertura cruda en coverage/tmp. Después c8 la
+      #    convierte a coverage/lcov.info, que es el formato que lee Sonar.
+      #    Antes el reporte se pedía con el backend todavía corriendo, y por
+      #    eso Sonar recibía 0% de cobertura.
       - name: Detener backend y generar cobertura
         if: ${{ always() }}
         working-directory: backend
         run: |
-          pkill -TERM -f "bin/www" || true
-          # Espera hasta 20 s a que c8 termine de escribir el reporte
+          kill -TERM "$(cat ../backend.pid)" || true
+          # Espera hasta 20 s a que el proceso termine de escribir
           for i in $(seq 1 20); do
-            pgrep -f "bin/www" > /dev/null || break
+            kill -0 "$(cat ../backend.pid)" 2>/dev/null || break
             sleep 1
           done
+          echo "Archivos de cobertura cruda generados:"
+          ls coverage/tmp
+          npx c8 report \
+            --reporter=lcov \
+            --reporter=text \
+            --reports-dir=coverage \
+            --temp-directory=coverage/tmp
           ls -la coverage
 
       # 10) c8 escribe las rutas relativas a backend/ (ej: "app.js"), pero
@@ -211,5 +219,3 @@ jobs:
             reports/
             backend.log
           retention-days: 30
-          
-          
