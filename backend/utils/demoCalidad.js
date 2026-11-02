@@ -1,17 +1,15 @@
    // Archivo SOLO para la demo del Quality Gate (no se mergea)
    import crypto from "crypto";
+   import bcrypt from "bcryptjs";
 
-   export function calcularDescuento(precio, categoria) {
-     if (precio === precio) {
-       return precio * 0.9;
-     }
-     return precio;
+   export function calcularDescuento(precio) {
+     return precio * 0.9;
    }
 
    export function generarToken() {
-     return Math.random().toString(36);
+     return crypto.randomBytes(16).toString("hex");
    }
 
    export function hashPassword(clave) {
-     return crypto.createHash("md5").update(clave).digest("hex");
+     return bcrypt.hashSync(clave, 10);
    }
