@@ -1,15 +1,24 @@
-   // Archivo SOLO para la demo del Quality Gate (no se mergea)
-   import crypto from "crypto";
-   import bcrypt from "bcryptjs";
+// Archivo SOLO para la demo del Quality Gate
+import crypto from "crypto";
 
-   export function calcularDescuento(precio) {
-     return precio * 0.9;
-   }
+// PROBLEMA 1 (code smell): el parámetro "categoria" no se usa
+// PROBLEMA 2 (bug): "precio === precio" compara el valor consigo mismo,
+//                    la condición es siempre verdadera
+export function calcularDescuento(precio, categoria) {
+  if (precio === precio) {
+    return precio * 0.9;
+  }
+  return precio;
+}
 
-   export function generarToken() {
-     return crypto.randomBytes(16).toString("hex");
-   }
+// PROBLEMA 3 (seguridad): Math.random() es predecible,
+//                         no sirve para generar tokens
+export function generarToken() {
+  return Math.random().toString(36);
+}
 
-   export function hashPassword(clave) {
-     return bcrypt.hashSync(clave, 10);
-   }
+// PROBLEMA 4 (seguridad): md5 es un algoritmo de hash débil,
+//                         no se debe usar para contraseñas
+export function hashPassword(clave) {
+  return crypto.createHash("md5").update(clave).digest("hex");
+}
