@@ -36,5 +36,11 @@ router.post('/productos/modificar/:id', esAdmin, upload.single('imagen'), postMo
 router.post('/api/productos/comprar/:id', postComprarProducto);
 router.post('/productos/eliminar/:id', postEliminarProducto);
 router.post('/api/productos/devolver/:id', postDevolverProducto);
+router.post('/admin/logout', (req, res) => {
+    req.session.destroy((err) => {
+        if (err) console.log(err);
+        res.redirect('/admin/login'); 
+    });
+});
 
 export default router;
