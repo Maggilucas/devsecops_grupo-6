@@ -36,5 +36,18 @@ router.post('/productos/modificar/:id', esAdmin, upload.single('imagen'), postMo
 router.post('/api/productos/comprar/:id', postComprarProducto);
 router.post('/productos/eliminar/:id', postEliminarProducto);
 router.post('/api/productos/devolver/:id', postDevolverProducto);
+router.post('/logout', (req, res) => {
+    req.session.destroy((err) => {
+        if (err) {
+            console.error('Error al cerrar sesión:', err);
+            return res.status(500).send('No se pudo cerrar la sesión');
+        }
+
+        res.clearCookie('connect.sid');
+        return res.redirect('/admin/login');
+    });
+});
+
+
 
 export default router;

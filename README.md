@@ -1,4 +1,5 @@
 [![CI](https://github.com/nadiamoran/github-actions-UTN/actions/workflows/ci.yml/badge.svg)](https://github.com/nadiamoran/github-actions-UTN/actions/workflows/ci.yml)
+[![Quality gate status](https://sonarcloud.io/api/project_badges/measure?project=Maggilucas_devsecops_grupo-6&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=Maggilucas_devsecops_grupo-6)
 
 # Trabajo Práctico Integrador - Grupo 6: Calidad de Código, Deuda Técnica y Seguridad (DevSecOps)
 

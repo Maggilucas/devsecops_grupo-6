@@ -57,3 +57,67 @@ def test_sesion_de_cliente_por_defecto_es_invitado(api_url):
     resp = requests.get(f"{api_url}/admin/api/session")
 
     assert resp.json() == {"nombre": "Invitado"}
+
+
+
+def test_crear_producto_con_sesion_da_acceso(api_url):
+    sesion = requests.Session()
+
+    try:
+        resp_login = sesion.post(
+            f"{api_url}/admin/login",
+            data=ADMIN,
+            allow_redirects=False,
+        )
+
+        assert resp_login.status_code == 302
+        assert resp_login.headers["Location"] == "/admin/dashboard"
+
+        resp_crear = sesion.get(
+            f"{api_url}/admin/productos/crear",
+            allow_redirects=False,
+        )
+
+        assert resp_crear.status_code == 200
+
+    finally:
+        sesion.close()
+
+
+def test_logout_cierra_sesion_correctamente(api_url):
+    sesion = requests.Session()
+
+    try:
+        resp_login = sesion.post(
+            f"{api_url}/admin/login",
+            data=ADMIN,
+            allow_redirects=False,
+        )
+
+        assert resp_login.status_code == 302
+        assert resp_login.headers["Location"] == "/admin/dashboard"
+
+        dash_previo = sesion.get(
+            f"{api_url}/admin/dashboard",
+            allow_redirects=False,
+        )
+
+        assert dash_previo.status_code == 200
+
+        resp_logout = sesion.post(
+            f"{api_url}/admin/logout",
+            allow_redirects=False,
+        )
+
+        assert resp_logout.status_code == 302
+
+        dashboard_post_logout = sesion.get(
+            f"{api_url}/admin/dashboard",
+            allow_redirects=False,
+        )
+
+        assert dashboard_post_logout.status_code == 302
+        assert dashboard_post_logout.headers["Location"] == "/admin/login"
+
+    finally:
+        sesion.close()
