@@ -18,18 +18,24 @@ def test_crear_producto_sin_sesion_redirige_al_login(api_url):
     assert resp.status_code == 302
     assert resp.headers["Location"] == "/admin/login"
 
+def test_login_correcto_da_acceso_al_dashboard(api_url, productos_seed):
+    with requests.Session() as sesion:
+        resp = sesion.post(
+            f"{api_url}/admin/login",
+            data=ADMIN,
+            allow_redirects=False
+        )
 
-def test_login_correcto_da_acceso_al_dashboard(api_url):
-    sesion = requests.Session()
+        assert resp.status_code == 302
+        assert resp.headers["Location"] == "/admin/dashboard"
 
-    resp = sesion.post(f"{api_url}/admin/login", data=ADMIN, allow_redirects=False)
-    assert resp.status_code == 302
-    assert resp.headers["Location"] == "/admin/dashboard"
+        dashboard = sesion.get(
+            f"{api_url}/admin/dashboard",
+            allow_redirects=False
+        )
 
-    # Con la cookie de sesión ya se puede entrar al dashboard
-    dashboard = sesion.get(f"{api_url}/admin/dashboard", allow_redirects=False)
-    assert dashboard.status_code == 200
-    assert "Batman Año Uno" in dashboard.text
+        assert dashboard.status_code == 200
+        assert "Batman Año Uno" in dashboard.text
 
 
 def test_login_con_password_incorrecta_muestra_error(api_url):

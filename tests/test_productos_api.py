@@ -1,5 +1,8 @@
 """GET /admin/api/productos y GET /admin/producto/imagen/:id"""
 import requests
+import pytest
+
+pytestmark = pytest.mark.usefixtures("productos_seed")
 
 
 def test_lista_solo_productos_activos(api_url):
@@ -14,7 +17,11 @@ def test_lista_solo_productos_activos(api_url):
 
 
 def test_no_expone_la_imagen_binaria_y_agrega_url(api_url):
-    productos = requests.get(f"{api_url}/admin/api/productos").json()["data"]
+    resp = requests.get(f"{api_url}/admin/api/productos")
+
+    assert resp.status_code == 200
+
+    productos = resp.json()["data"]
 
     for producto in productos:
         assert "imagen" not in producto
@@ -22,7 +29,11 @@ def test_no_expone_la_imagen_binaria_y_agrega_url(api_url):
 
 
 def test_devuelve_los_campos_del_producto(api_url):
-    productos = requests.get(f"{api_url}/admin/api/productos").json()["data"]
+    resp = requests.get(f"{api_url}/admin/api/productos")
+
+    assert resp.status_code == 200
+
+    productos = resp.json()["data"]
     batman = next(p for p in productos if p["id"] == 1)
 
     assert batman["categoria"] == "Comic"

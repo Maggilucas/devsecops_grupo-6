@@ -64,7 +64,7 @@ def db():
     conexion.close()
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def productos_seed(api_url, db):
     """Deja la tabla productos en un estado conocido antes de cada test."""
     with db.cursor() as cur:
