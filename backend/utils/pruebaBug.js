@@ -1,5 +1,6 @@
 export function validarRegistroUsuario(userData) {
-  if (userData.perfil.edad < 18) {
+  const edad = userData?.perfil?.edad;
+  if (edad === undefined || edad < 18) {
     throw new Error("El usuario debe ser mayor de edad");
   }
   return true;
