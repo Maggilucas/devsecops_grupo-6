@@ -1,5 +1,8 @@
 """POST /admin/api/productos/comprar/:id y /devolver/:id (manejo de stock)"""
 import requests
+import pytest
+
+pytestmark = pytest.mark.usefixtures("productos_seed")
 
 
 def test_comprar_descuenta_la_cantidad_pedida(api_url, stock_de):
@@ -19,9 +22,22 @@ def test_devolver_suma_la_cantidad_al_stock(api_url, stock_de):
 
 
 def test_comprar_y_devolver_deja_el_stock_igual(api_url, stock_de):
-    requests.post(f"{api_url}/admin/api/productos/comprar/1", json={"cantidad": 4})
-    requests.post(f"{api_url}/admin/api/productos/devolver/1", json={"cantidad": 4})
+    resp_compra = requests.post(
+        f"{api_url}/admin/api/productos/comprar/1",
+        json={"cantidad": 4}
+    )
 
+    assert resp_compra.status_code == 200
+    assert resp_compra.json()["success"] is True
+    assert stock_de(1) == 1
+
+    resp_devolucion = requests.post(
+        f"{api_url}/admin/api/productos/devolver/1",
+        json={"cantidad": 4}
+    )
+
+    assert resp_devolucion.status_code == 200
+    assert resp_devolucion.json()["success"] is True
     assert stock_de(1) == 5
 
 
